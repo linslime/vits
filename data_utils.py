@@ -33,8 +33,8 @@ class TextAudioLoader(torch.utils.data.Dataset):
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 190)
 
-        random.seed(1234)
-        random.shuffle(self.audiopaths_and_text)
+        # random.seed(1234)
+        # random.shuffle(self.audiopaths_and_text)
         self._filter()
 
 
@@ -91,10 +91,12 @@ class TextAudioLoader(torch.utils.data.Dataset):
         return text_norm
 
     def __getitem__(self, index):
-        return self.get_audio_text_pair(self.audiopaths_and_text[index])
+        item = self.get_audio_text_pair(self.audiopaths_and_text[index])
+        return item
 
     def __len__(self):
-        return len(self.audiopaths_and_text)
+        l = len(self.audiopaths_and_text)
+        return l
 
 
 class TextAudioCollate():
@@ -117,6 +119,8 @@ class TextAudioCollate():
         max_text_len = max([len(x[0]) for x in batch])
         max_spec_len = max([x[1].size(1) for x in batch])
         max_wav_len = max([x[2].size(1) for x in batch])
+
+
 
         text_lengths = torch.LongTensor(len(batch))
         spec_lengths = torch.LongTensor(len(batch))
