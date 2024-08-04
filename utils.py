@@ -131,6 +131,13 @@ def plot_alignment_to_numpy(alignment, info=None):
 
 
 def load_wav_to_torch(full_path):
+    """
+    函数功能：读取音频文件
+    full_path:音频文件目录
+    return:torch格式的音频数据，采样频率
+    """
+    # sampling_rate为采样频率，为22050
+    # data为音频数据
     sampling_rate, data = read(full_path)
     return torch.FloatTensor(data.astype(np.float32)), sampling_rate
 

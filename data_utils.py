@@ -18,6 +18,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         3) computes spectrograms from audio files.
     """
     def __init__(self, audiopaths_and_text, hparams):
+        # 读取audiopaths_and_text目录中的数据，得到一个列表。该列表的每一项可以分成两项，前一项是音频文件的目录，后一项是该音频的音素文本。
         self.audiopaths_and_text = load_filepaths_and_text(audiopaths_and_text)
         self.text_cleaners  = hparams.text_cleaners
         self.max_wav_value  = hparams.max_wav_value
@@ -25,13 +26,14 @@ class TextAudioLoader(torch.utils.data.Dataset):
         self.filter_length  = hparams.filter_length 
         self.hop_length     = hparams.hop_length 
         self.win_length     = hparams.win_length
-        self.sampling_rate  = hparams.sampling_rate 
+        # 默认的采样频率，如果参与训练的音频文件采样频率不是默认值，会报错
+        self.sampling_rate  = hparams.sampling_rate
 
         self.cleaned_text = getattr(hparams, "cleaned_text", False)
 
         self.add_blank = hparams.add_blank
-        self.min_text_len = getattr(hparams, "min_text_len", 1)
-        self.max_text_len = getattr(hparams, "max_text_len", 190)
+        self.min_text_len = getattr(hparams, "min_text_len", 1)# 音素文本的最小长度
+        self.max_text_len = getattr(hparams, "max_text_len", 190)# 音素文本的最大长度
 
         # random.seed(1234)
         # random.shuffle(self.audiopaths_and_text)
@@ -45,34 +47,56 @@ class TextAudioLoader(torch.utils.data.Dataset):
         # Store spectrogram lengths for Bucketing
         # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
         # spec_length = wav_length // hop_length
-
+        # 将self.audiopaths_and_text列表中，音素文本长度大于最大值和小于最小值的项去除
         audiopaths_and_text_new = []
         lengths = []
         for audiopath, text in self.audiopaths_and_text:
+            # 判断音素文本长度是否大于最小值且是否小于最小值，是就将该项添加到audiopaths_and_text_new,并且计算音频文件的大小，将结果放入lengths列表中。
             if self.min_text_len <= len(text) and len(text) <= self.max_text_len:
                 audiopaths_and_text_new.append([audiopath, text])
+                # os.path.getsize()返回字节大小，
                 lengths.append(os.path.getsize(audiopath) // (2 * self.hop_length))
         self.audiopaths_and_text = audiopaths_and_text_new
         self.lengths = lengths
 
     def get_audio_text_pair(self, audiopath_and_text):
         # separate filename and text
+        """
+        函数功能：处理音频文件和音素文本，返回音素id，傅里叶变化结果，音频
+        audiopath_and_text:音频文件目录和音素文本
+        return： 音素文本对应的id，傅里叶变化，音频文件
+        """
         audiopath, text = audiopath_and_text[0], audiopath_and_text[1]
         text = self.get_text(text)
         spec, wav = self.get_audio(audiopath)
         return (text, spec, wav)
 
     def get_audio(self, filename):
+        """
+        函数功能：通过音频文件名处理结果
+        filename：音频文件目录
+        return：音频文件的傅里叶变换结果和音频数据
+        """
+        """
+        加载filename目录的音频文件
+        audio为音频数据，为torch格式的音频数据；
+        sampling_rate为采样频率，为22050
+        """
         audio, sampling_rate = load_wav_to_torch(filename)
+        # 如果音频文件的采样频率和默认值不同，就报错
         if sampling_rate != self.sampling_rate:
             raise ValueError("{} {} SR doesn't match target {} SR".format(
                 sampling_rate, self.sampling_rate))
+        # 将音频中每一个采样点的振幅，除以振幅的最大值
         audio_norm = audio / self.max_wav_value
+        #改变数据格式，将原本一维数据改为二维格式的数据
         audio_norm = audio_norm.unsqueeze(0)
+        # 字符串替换，将文件名中的，".wav"改为".spec.pt"
         spec_filename = filename.replace(".wav", ".spec.pt")
         if os.path.exists(spec_filename):
             spec = torch.load(spec_filename)
         else:
+            # 将数据傅里叶变换
             spec = spectrogram_torch(audio_norm, self.filter_length,
                 self.sampling_rate, self.hop_length, self.win_length,
                 center=False)
@@ -81,11 +105,17 @@ class TextAudioLoader(torch.utils.data.Dataset):
         return spec, audio_norm
 
     def get_text(self, text):
+        """
+        函数功能：将音素文本映射到id
+        text： 音素文本
+        return： 处理完成的序列
+        """
         if self.cleaned_text:
             text_norm = cleaned_text_to_sequence(text)
         else:
             text_norm = text_to_sequence(text, self.text_cleaners)
         if self.add_blank:
+            # 将音素id列表中两两元素之间加入0,表示下划线
             text_norm = commons.intersperse(text_norm, 0)
         text_norm = torch.LongTensor(text_norm)
         return text_norm
