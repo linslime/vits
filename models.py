@@ -15,6 +15,9 @@ from commons import init_weights, get_padding
 
 
 class StochasticDurationPredictor(nn.Module):
+	"""
+	随机时长预测器
+	"""
 	def __init__(self, in_channels, filter_channels, kernel_size, p_dropout, n_flows=4, gin_channels=0):
 		super().__init__()
 		filter_channels = in_channels # it needs to be removed from future version.
@@ -133,6 +136,10 @@ class DurationPredictor(nn.Module):
 
 
 class TextEncoder(nn.Module):
+	"""
+	先验编码器分为文本编码器和标准化流
+	文本编码器，是transform中的文本编码器
+	"""
 	def __init__(self,
 	             n_vocab,
 	             out_channels,
@@ -173,10 +180,16 @@ class TextEncoder(nn.Module):
 		stats = self.proj(x) * x_mask
 		
 		m, logs = torch.split(stats, self.out_channels, dim=1)
+		"""
+		文本编码器返回4个值，x用于计算音素时长，m和logs经注意力权重加权求和之后，以残差形式求得先验隐变量z_p
+		"""
 		return x, m, logs, x_mask
 
 
 class ResidualCouplingBlock(nn.Module):
+	"""
+	标准化流
+	"""
 	def __init__(self,
 	             channels,
 	             hidden_channels,
@@ -210,6 +223,9 @@ class ResidualCouplingBlock(nn.Module):
 
 
 class PosteriorEncoder(nn.Module):
+	"""
+	后验编码器，输入音频数据，输出隐空间变量
+	"""
 	def __init__(self,
 	             in_channels,
 	             out_channels,
@@ -242,6 +258,9 @@ class PosteriorEncoder(nn.Module):
 
 
 class Generator(torch.nn.Module):
+	"""
+	生成器，也就是hifigan v1的生成器
+	"""
 	def __init__(self, initial_channel, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, gin_channels=0):
 		super(Generator, self).__init__()
 		self.num_kernels = len(resblock_kernel_sizes)
@@ -297,6 +316,9 @@ class Generator(torch.nn.Module):
 
 
 class DiscriminatorP(torch.nn.Module):
+	"""
+	多周期判别器
+	"""
 	def __init__(self, period, kernel_size=5, stride=3, use_spectral_norm=False):
 		super(DiscriminatorP, self).__init__()
 		self.period = period
@@ -389,9 +411,9 @@ class MultiPeriodDiscriminator(torch.nn.Module):
 
 class SynthesizerTrn(nn.Module):
 	"""
+	生成器
 	Synthesizer for Training
 	"""
-	
 	def __init__(self,
 	             n_vocab,
 	             spec_channels,
@@ -435,7 +457,6 @@ class SynthesizerTrn(nn.Module):
 		self.gin_channels = gin_channels
 		
 		self.use_sdp = use_sdp
-		
 		self.enc_p = TextEncoder(n_vocab,
 		                         inter_channels,
 		                         hidden_channels,

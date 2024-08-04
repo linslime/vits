@@ -1,3 +1,6 @@
+"""
+transform
+"""
 import copy
 import math
 import numpy as np
@@ -11,6 +14,9 @@ from modules import LayerNorm
 
 
 class Encoder(nn.Module):
+	"""
+	transform中的编码器
+	"""
 	def __init__(self, hidden_channels, filter_channels, n_heads, n_layers, kernel_size=1, p_dropout=0., window_size=4, **kwargs):
 		super().__init__()
 		self.hidden_channels = hidden_channels
@@ -48,6 +54,9 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
+	"""
+	transform中的解码器
+	"""
 	def __init__(self, hidden_channels, filter_channels, n_heads, n_layers, kernel_size=1, p_dropout=0., proximal_bias=False, proximal_init=True, **kwargs):
 		super().__init__()
 		self.hidden_channels = hidden_channels
@@ -99,6 +108,9 @@ class Decoder(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
+	"""
+	多头注意力机制
+	"""
 	def __init__(self, channels, out_channels, n_heads, p_dropout=0., window_size=None, heads_share=True, block_length=None, proximal_bias=False, proximal_init=False):
 		super().__init__()
 		assert channels % n_heads == 0
@@ -255,6 +267,10 @@ class MultiHeadAttention(nn.Module):
 
 
 class FFN(nn.Module):
+	"""
+	feed forward层
+	也就是全连接层
+	"""
 	def __init__(self, in_channels, out_channels, filter_channels, kernel_size, p_dropout=0., activation=None, causal=False):
 		super().__init__()
 		self.in_channels = in_channels

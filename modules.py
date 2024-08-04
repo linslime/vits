@@ -69,6 +69,7 @@ class ConvReluNorm(nn.Module):
 
 class DDSConv(nn.Module):
 	"""
+	带洞深度可分离卷积
 	Dialted and Depth-Separable Convolution
 	"""
 	def __init__(self, channels, kernel_size, n_layers, p_dropout=0.):
