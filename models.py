@@ -227,11 +227,11 @@ class PosteriorEncoder(nn.Module):
 	后验编码器，输入音频数据，输出隐空间变量
 	"""
 	def __init__(self,
-	             in_channels,
-	             out_channels,
+	             in_channels, # 输入信号的通道数量
+	             out_channels, # 输出信号的通道数量
 	             hidden_channels,
-	             kernel_size,
-	             dilation_rate,
+	             kernel_size, # 巻积核大小
+	             dilation_rate, # 巻积核元素之间的距离
 	             n_layers,
 	             gin_channels=0):
 		super().__init__()
@@ -253,6 +253,11 @@ class PosteriorEncoder(nn.Module):
 		x = self.enc(x, x_mask, g=g)
 		stats = self.proj(x) * x_mask
 		m, logs = torch.split(stats, self.out_channels, dim=1)
+		"""
+		m 为均值
+		logs 为标准差
+		z为样本
+		"""
 		z = (m + torch.randn_like(m) * torch.exp(logs)) * x_mask
 		return z, m, logs, x_mask
 

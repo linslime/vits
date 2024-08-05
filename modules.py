@@ -147,7 +147,9 @@ class WN(torch.nn.Module):
 			self.res_skip_layers.append(res_skip_layer)
 	
 	def forward(self, x, x_mask, g=None, **kwargs):
+		# 生成一个新的张量，维度与x完全一致，值全为零
 		output = torch.zeros_like(x)
+		# 生成一个张量，值为self.hidden_channels,数值类型为整数
 		n_channels_tensor = torch.IntTensor([self.hidden_channels])
 		
 		if g is not None:
@@ -159,6 +161,7 @@ class WN(torch.nn.Module):
 				cond_offset = i * 2 * self.hidden_channels
 				g_l = g[:,cond_offset:cond_offset+2*self.hidden_channels,:]
 			else:
+				# 生成一个新的张量，维度与x完全一致，值全为零
 				g_l = torch.zeros_like(x_in)
 			
 			acts = commons.fused_add_tanh_sigmoid_multiply(
