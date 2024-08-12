@@ -93,6 +93,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
         audio_norm = audio_norm.unsqueeze(0)
         # 字符串替换，将文件名中的，".wav"改为".spec.pt"
         spec_filename = filename.replace(".wav", ".spec.pt")
+        # 如果数据已经保存到外存，那么直接读取，否则计算得到结果，并将结果保存到外存
         if os.path.exists(spec_filename):
             spec = torch.load(spec_filename)
         else:
@@ -100,6 +101,7 @@ class TextAudioLoader(torch.utils.data.Dataset):
             spec = spectrogram_torch(audio_norm, self.filter_length,
                 self.sampling_rate, self.hop_length, self.win_length,
                 center=False)
+            # 将三维数据转变为二维数据
             spec = torch.squeeze(spec, 0)
             torch.save(spec, spec_filename)
         return spec, audio_norm

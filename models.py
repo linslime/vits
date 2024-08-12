@@ -172,6 +172,16 @@ class TextEncoder(nn.Module):
 		self.proj= nn.Conv1d(hidden_channels, out_channels * 2, 1)
 	
 	def forward(self, x, x_lengths):
+		"""
+		x:音素文本
+		x_lengths:音素文本长度
+		
+		return:
+		x:embedding之后的音素文本
+		m:高斯概率密度分布的均值
+		logs:高斯概率密度分布的标准差的log值
+		x_mask:遮盖掉末尾多余的数据
+		"""
 		x = self.emb(x) * math.sqrt(self.hidden_channels) # [b, t, h]
 		x = torch.transpose(x, 1, -1) # [b, h, t]
 		x_mask = torch.unsqueeze(commons.sequence_mask(x_lengths, x.size(2)), 1).to(x.dtype)
@@ -483,6 +493,12 @@ class SynthesizerTrn(nn.Module):
 			self.emb_g = nn.Embedding(n_speakers, gin_channels)
 	
 	def forward(self, x, x_lengths, y, y_lengths, sid=None):
+		"""
+		x:音素文本
+		x_lengths:音素文本长度
+		y:音频频域数据
+		y_lengths:音频频域数据长度
+		"""
 		
 		x, m_p, logs_p, x_mask = self.enc_p(x, x_lengths)
 		if self.n_speakers > 0:
@@ -493,6 +509,7 @@ class SynthesizerTrn(nn.Module):
 		z, m_q, logs_q, y_mask = self.enc_q(y, y_lengths, g=g)
 		z_p = self.flow(z, y_mask, g=g)
 		
+		# 计算高斯分布
 		with torch.no_grad():
 			# negative cross-entropy
 			s_p_sq_r = torch.exp(-2 * logs_p) # [b, d, t]
@@ -504,8 +521,9 @@ class SynthesizerTrn(nn.Module):
 			
 			attn_mask = torch.unsqueeze(x_mask, 2) * torch.unsqueeze(y_mask, -1)
 			attn = monotonic_align.maximum_path(neg_cent, attn_mask.squeeze(1)).unsqueeze(1).detach()
-		
+		# 求和，为每一文本随机变量对应的音频随机变量数目求和
 		w = attn.sum(2)
+		# 对齐
 		if self.use_sdp:
 			l_length = self.dp(x, x_mask, w, g=g)
 			l_length = l_length / torch.sum(x_mask)
@@ -514,10 +532,12 @@ class SynthesizerTrn(nn.Module):
 			logw = self.dp(x, x_mask, g=g)
 			l_length = torch.sum((logw - logw_)**2, [1,2]) / torch.sum(x_mask) # for averaging
 		
+		# 文本和音频数据对齐后，由于文本数据比较短，为每一音频随机变量数据复制相应的一份文本随机变量数据
 		# expand prior
 		m_p = torch.matmul(attn.squeeze(1), m_p.transpose(1, 2)).transpose(1, 2)
 		logs_p = torch.matmul(attn.squeeze(1), logs_p.transpose(1, 2)).transpose(1, 2)
 		
+		# 对经过后验编码器计算出的因变量进行随即切片，然后将结果放入解码器
 		z_slice, ids_slice = commons.rand_slice_segments(z, y_lengths, self.segment_size)
 		o = self.dec(z_slice, g=g)
 		return o, l_length, attn, ids_slice, x_mask, y_mask, (z, z_p, m_p, logs_p, m_q, logs_q)

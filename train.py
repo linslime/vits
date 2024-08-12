@@ -110,6 +110,15 @@ def train_and_evaluate( epoch, hps, nets, optims, schedulers, scaler, loaders, l
 	global global_step
 	net_g.train()
 	net_d.train()
+	"""
+	batch_idx:序号，标记迭代次数，从0开始
+	x:音素文本，用相应的id表示，并且两两之间插入了一个0
+	x_lengths:表示音素文本的长度。
+	spec:表示音频短时傅里叶变化后的数据
+	spec_lengths:表示短时傅立叶变化后的数据长度
+	y:表示音频数据
+	y_lengths:表示音频数据的长度
+	"""
 	for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths) in enumerate(train_loader):
 
 		with autocast(enabled=hps.train.fp16_run):

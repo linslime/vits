@@ -49,12 +49,21 @@ hann_window = {}
 
 
 def spectrogram_torch(y, n_fft, sampling_rate, hop_size, win_size, center=False):
+	"""
+	计算音频信号y的短时傅立叶变换谱
+	y:音频信号的时域谱
+	n_fft:FFT点数
+	sampling_rate:采样频率
+	hop_size:帧移
+	win_size:窗长度
+	center:是否在时间轴上居中
+	"""
 	if torch.min(y) < -1.:
 		print('min value is ', torch.min(y))
 	if torch.max(y) > 1.:
 		print('max value is ', torch.max(y))
 
-	global hann_window
+	hann_window = {}
 	dtype_device = str(y.dtype) + '_' + str(y.device)
 	wnsize_dtype_device = str(win_size) + '_' + dtype_device
 	if wnsize_dtype_device not in hann_window:
