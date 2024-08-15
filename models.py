@@ -258,6 +258,14 @@ class PosteriorEncoder(nn.Module):
 		self.proj = nn.Conv1d(hidden_channels, out_channels * 2, 1)
 	
 	def forward(self, x, x_lengths, g=None):
+		"""
+		x:音频短时傅立叶变换数据
+		x_lengths:音频短时傅立叶变换后的数据长度
+		
+		return:
+		z:隐空间变量
+		m:
+		"""
 		x_mask = torch.unsqueeze(commons.sequence_mask(x_lengths, x.size(2)), 1).to(x.dtype)
 		x = self.pre(x) * x_mask
 		x = self.enc(x, x_mask, g=g)
@@ -500,6 +508,16 @@ class SynthesizerTrn(nn.Module):
 		y_lengths:音频频域数据长度
 		"""
 		
+		"""
+		x:音素文本
+		x_lengths:音素文本长度
+
+		return:
+		x:embedding之后的音素文本
+		m:高斯概率密度分布的均值
+		logs:高斯概率密度分布的标准差的log值
+		x_mask:遮盖掉末尾多余的数据
+		"""
 		x, m_p, logs_p, x_mask = self.enc_p(x, x_lengths)
 		if self.n_speakers > 0:
 			g = self.emb_g(sid).unsqueeze(-1) # [b, h, 1]
