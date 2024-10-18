@@ -177,7 +177,7 @@ class TextEncoder(nn.Module):
 		x_lengths:音素文本长度
 		
 		return:
-		x:embedding之后的音素文本
+		x:transform之后的音素文本,维度与隐空间相同，训练过程中，通过flow与隐空间对齐
 		m:高斯概率密度分布的均值
 		logs:高斯概率密度分布的标准差的log值
 		x_mask:遮盖掉末尾多余的数据
@@ -273,7 +273,7 @@ class PosteriorEncoder(nn.Module):
 		m, logs = torch.split(stats, self.out_channels, dim=1)
 		"""
 		m 为均值
-		logs 为标准差
+		logs 为标准差的log值
 		z为样本
 		"""
 		z = (m + torch.randn_like(m) * torch.exp(logs)) * x_mask
@@ -506,6 +506,20 @@ class SynthesizerTrn(nn.Module):
 		x_lengths:音素文本长度
 		y:音频频域数据
 		y_lengths:音频频域数据长度
+		
+		return:
+		o:波形
+		l_length:
+		attn:
+		ids_slice:
+		x_mask:遮住x末尾空余部分
+		y_mask:遮住0末尾空余部分
+		z:后验编码器生成的隐空间采样值
+		z_p:z通过flow后的值
+		m_p:对输入的文本处理，得到的隐空间变量概率分布的平均值，由文本文本编码器处理得到
+		logs_p:对输入的文本处理，得到的隐空间变量概率分布的标准差的log值，由文本编码器处理得到
+		m_q:对输入的线性频谱图处理，得到的隐空间变量概率分布的平均值，由后验编码器处理得到
+		logs_q:对输入的线性频谱图处理，得到的隐空间变量概率分布的标准差的log值，由后验编码器处理得到
 		"""
 		
 		"""
