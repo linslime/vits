@@ -32,18 +32,15 @@ global_step = 0
 
 def main():
 	"""Assume Single Node Multi GPUs Training Only"""
-	# assert torch.cuda.is_available(), "CPU training is not allowed."
 
-	n_gpus = torch.cuda.device_count()
 	os.environ['MASTER_ADDR'] = 'localhost'
 	os.environ['MASTER_PORT'] = '8989'
 
 	hps = utils.get_hparams()
-	run(0, n_gpus, hps)
-	# mp.spawn(run, nprocs=n_gpus, args=(n_gpus, hps,))
+	run(hps)
 
 
-def run(rank, n_gpus, hps):
+def run(hps):
 	global global_step
 
 	logger = utils.get_logger(hps.model_dir)
@@ -92,10 +89,7 @@ def run(rank, n_gpus, hps):
 	scaler = GradScaler(enabled=hps.train.fp16_run)
 
 	for epoch in range(epoch_str, hps.train.epochs + 1):
-		if rank==0:
-			train_and_evaluate( epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler, [train_loader, eval_loader], logger, [writer, writer_eval])
-		else:
-			train_and_evaluate( epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler, [train_loader, None], None, None)
+		train_and_evaluate( epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler, [train_loader, eval_loader], logger, [writer, writer_eval])
 		scheduler_g.step()
 		scheduler_d.step()
 

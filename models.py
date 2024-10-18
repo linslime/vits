@@ -282,7 +282,7 @@ class PosteriorEncoder(nn.Module):
 
 class Generator(torch.nn.Module):
 	"""
-	生成器，也就是hifigan v1的生成器
+	生成器，也就是hifigan v1的生成器，decoder
 	"""
 	def __init__(self, initial_channel, resblock, resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates, upsample_initial_channel, upsample_kernel_sizes, gin_channels=0):
 		super(Generator, self).__init__()
