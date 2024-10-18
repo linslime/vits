@@ -509,9 +509,9 @@ class SynthesizerTrn(nn.Module):
 		
 		return:
 		o:波形
-		l_length:
-		attn:
-		ids_slice:
+		l_length:随机事件预测器的损失
+		attn:频谱图和文本特征的持续时间对齐
+		ids_slice:z的切片的起始下标
 		x_mask:遮住x末尾空余部分
 		y_mask:遮住0末尾空余部分
 		z:后验编码器生成的隐空间采样值
