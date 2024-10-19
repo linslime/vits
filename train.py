@@ -50,10 +50,10 @@ def run(hps):
 
 	train_dataset = TextAudioLoader(hps.data.training_files, hps.data)
 	collate_fn = TextAudioCollate()
-	train_loader = DataLoader(train_dataset, num_workers=0, shuffle=True, pin_memory=True, collate_fn=collate_fn)
+	train_loader = DataLoader(train_dataset, batch_size=hps.train.batch_size ,num_workers=0, shuffle=False, pin_memory=True, collate_fn=collate_fn)
 
 	eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-	eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=True, batch_size=hps.train.batch_size, pin_memory=True, drop_last=False, collate_fn=collate_fn)
+	eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False, batch_size=hps.train.batch_size, pin_memory=True, drop_last=False, collate_fn=collate_fn)
 
 	net_g = SynthesizerTrn(
 		len(symbols),
@@ -72,7 +72,6 @@ def run(hps):
 		betas=hps.train.betas,
 		eps=hps.train.eps)
 
-
 	try:
 		_, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g, optim_g)
 		_, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d, optim_d)
@@ -85,7 +84,8 @@ def run(hps):
 	scheduler_d = torch.optim.lr_scheduler.ExponentialLR(optim_d, gamma=hps.train.lr_decay, last_epoch=epoch_str-2)
 
 	scaler = GradScaler(enabled=hps.train.fp16_run)
-
+	net_g = net_g.cuda()
+	net_d = net_d.cuda()
 	for epoch in range(epoch_str, hps.train.epochs + 1):
 		train_and_evaluate(epoch, hps, [net_g, net_d], [optim_g, optim_d], scaler, [train_loader, eval_loader], logger, [writer, writer_eval])
 		scheduler_g.step()
@@ -111,7 +111,12 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 	y_lengths:表示音频数据的长度
 	"""
 	for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths) in enumerate(train_loader):
-
+		x = x.cuda()
+		x_lengths = x_lengths.cuda()
+		spec = spec.cuda()
+		spec_lengths = spec_lengths.cuda()
+		y = y.cuda()
+		y_lengths = y_lengths.cuda()
 		with autocast(enabled=hps.train.fp16_run):
 			y_hat, l_length, attn, ids_slice, x_mask, z_mask, \
 				(z, z_p, m_p, logs_p, m_q, logs_q) = net_g(x, x_lengths, spec, spec_lengths)
@@ -148,7 +153,8 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 		scaler.unscale_(optim_d)
 		grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
 		scaler.step(optim_d)
-
+		scaler.update()
+		
 		with autocast(enabled=hps.train.fp16_run):
 			# Generator
 			y_d_hat_r, y_d_hat_g, fmap_r, fmap_g = net_d(y, y_hat)
@@ -208,6 +214,12 @@ def evaluate(hps, generator, eval_loader, writer_eval):
 	generator.eval()
 	with torch.no_grad():
 		for batch_idx, (x, x_lengths, spec, spec_lengths, y, y_lengths) in enumerate(eval_loader):
+			x = x.cuda()
+			x_lengths = x_lengths.cuda()
+			spec = spec.cuda()
+			spec_lengths = spec_lengths.cuda()
+			y = y.cuda()
+			y_lengths = y_lengths.cuda()
 			# remove else
 			x = x[:1]
 			x_lengths = x_lengths[:1]
