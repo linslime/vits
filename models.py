@@ -1,15 +1,12 @@
-import copy
 import math
 import torch
 from torch import nn
 from torch.nn import functional as F
-
 import commons
 import modules
 import attentions
 import monotonic_align
-
-from torch.nn import Conv1d, ConvTranspose1d, AvgPool1d, Conv2d
+from torch.nn import Conv1d, ConvTranspose1d, Conv2d
 from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
 from commons import init_weights, get_padding
 
@@ -431,7 +428,6 @@ class MultiPeriodDiscriminator(torch.nn.Module):
 		return y_d_rs, y_d_gs, fmap_rs, fmap_gs
 
 
-
 class SynthesizerTrn(nn.Module):
 	"""
 	生成器
@@ -609,4 +605,5 @@ class SynthesizerTrn(nn.Module):
 		z_hat = self.flow(z_p, y_mask, g=g_tgt, reverse=True)
 		o_hat = self.dec(z_hat * y_mask, g=g_tgt)
 		return o_hat, y_mask, (z, z_p, z_hat)
-
+	
+	

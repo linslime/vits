@@ -4,13 +4,11 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.cuda.amp import autocast, GradScaler
-
 import commons
 import utils
 from data_utils import (
 	TextAudioLoader,
 	TextAudioCollate,
-	DistributedBucketSampler
 )
 from models import (
 	SynthesizerTrn,
@@ -89,15 +87,14 @@ def run(hps):
 	scaler = GradScaler(enabled=hps.train.fp16_run)
 
 	for epoch in range(epoch_str, hps.train.epochs + 1):
-		train_and_evaluate( epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler, [train_loader, eval_loader], logger, [writer, writer_eval])
+		train_and_evaluate(epoch, hps, [net_g, net_d], [optim_g, optim_d], scaler, [train_loader, eval_loader], logger, [writer, writer_eval])
 		scheduler_g.step()
 		scheduler_d.step()
 
 
-def train_and_evaluate( epoch, hps, nets, optims, schedulers, scaler, loaders, logger, writers):
+def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, writers):
 	net_g, net_d = nets
 	optim_g, optim_d = optims
-	scheduler_g, scheduler_d = schedulers
 	train_loader, eval_loader = loaders
 	if writers is not None:
 		writer, writer_eval = writers
