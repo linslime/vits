@@ -52,10 +52,10 @@ def run(hps):
 
 	train_dataset = TextAudioLoader(hps.data.training_files, hps.data)
 	collate_fn = TextAudioCollate()
-	train_loader = DataLoader(train_dataset, num_workers=0, shuffle=False, pin_memory=True, collate_fn=collate_fn)
+	train_loader = DataLoader(train_dataset, num_workers=0, shuffle=True, pin_memory=True, collate_fn=collate_fn)
 
 	eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-	eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False, batch_size=hps.train.batch_size, pin_memory=True, drop_last=False, collate_fn=collate_fn)
+	eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=True, batch_size=hps.train.batch_size, pin_memory=True, drop_last=False, collate_fn=collate_fn)
 
 	net_g = SynthesizerTrn(
 		len(symbols),
@@ -118,7 +118,7 @@ def train_and_evaluate( epoch, hps, nets, optims, schedulers, scaler, loaders, l
 		with autocast(enabled=hps.train.fp16_run):
 			y_hat, l_length, attn, ids_slice, x_mask, z_mask, \
 				(z, z_p, m_p, logs_p, m_q, logs_q) = net_g(x, x_lengths, spec, spec_lengths)
-
+			# 将线性普转化为梅尔频谱
 			mel = spec_to_mel_torch(
 				spec,
 				hps.data.filter_length,
@@ -126,7 +126,9 @@ def train_and_evaluate( epoch, hps, nets, optims, schedulers, scaler, loaders, l
 				hps.data.sampling_rate,
 				hps.data.mel_fmin,
 				hps.data.mel_fmax)
+			# 将梅尔频谱图用相同方式采样切片
 			y_mel = commons.slice_segments(mel, ids_slice, hps.train.segment_size // hps.data.hop_length)
+			# 将解码器生成的的原始波形转化为梅尔频谱
 			y_hat_mel = mel_spectrogram_torch(
 				y_hat.squeeze(1),
 				hps.data.filter_length,
@@ -137,9 +139,9 @@ def train_and_evaluate( epoch, hps, nets, optims, schedulers, scaler, loaders, l
 				hps.data.mel_fmin,
 				hps.data.mel_fmax
 			)
-
+			# 将目标音频的原始波形进行采样切片
 			y = commons.slice_segments(y, ids_slice * hps.data.hop_length, hps.train.segment_size) # slice
-
+			# 将生成器生成的波形和原始波形放入鉴别器中鉴别
 			y_d_hat_r, y_d_hat_g, _, _ = net_d(y, y_hat.detach())
 			with autocast(enabled=False):
 				loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
