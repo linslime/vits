@@ -148,12 +148,13 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 			with autocast(enabled=False):
 				loss_disc, losses_disc_r, losses_disc_g = discriminator_loss(y_d_hat_r, y_d_hat_g)
 				loss_disc_all = loss_disc
+
 		optim_d.zero_grad()
-		scaler.scale(loss_disc_all).backward()
-		scaler.unscale_(optim_d)
+		# scaler.scale(loss_disc_all).backward()
+		# scaler.unscale_(optim_d)
 		grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
-		scaler.step(optim_d)
-		scaler.update()
+		optim_d.step()
+		# optim_d.update()
 		
 		with autocast(enabled=hps.train.fp16_run):
 			# Generator
@@ -167,11 +168,11 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 				loss_gen, losses_gen = generator_loss(y_d_hat_g)
 				loss_gen_all = loss_gen + loss_fm + loss_mel + loss_dur + loss_kl
 		optim_g.zero_grad()
-		scaler.scale(loss_gen_all).backward()
-		scaler.unscale_(optim_g)
+		# scaler.scale(loss_gen_all).backward()
+		# scaler.unscale_(optim_g)
 		grad_norm_g = commons.clip_grad_value_(net_g.parameters(), None)
-		scaler.step(optim_g)
-		scaler.update()
+		optim_g.step()
+		# optim_g.update()
 
 
 		if global_step % hps.train.log_interval == 0:
