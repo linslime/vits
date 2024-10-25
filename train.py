@@ -151,6 +151,7 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 
 		optim_d.zero_grad()
 		# scaler.scale(loss_disc_all).backward()
+		loss_disc_all.backward()
 		# scaler.unscale_(optim_d)
 		grad_norm_d = commons.clip_grad_value_(net_d.parameters(), None)
 		optim_d.step()
@@ -169,6 +170,9 @@ def train_and_evaluate( epoch, hps, nets, optims, scaler, loaders, logger, write
 				loss_gen_all = loss_gen + loss_fm + loss_mel + loss_dur + loss_kl
 		optim_g.zero_grad()
 		# scaler.scale(loss_gen_all).backward()
+		
+		
+		loss_gen.backward()
 		# scaler.unscale_(optim_g)
 		grad_norm_g = commons.clip_grad_value_(net_g.parameters(), None)
 		optim_g.step()
