@@ -38,44 +38,39 @@ global_step = 0
 
 
 def main():
-	"""Assume Single Node Multi GPUs Training Only"""
-	assert torch.cuda.is_available(), "CPU training is not allowed."
-	
-	n_gpus = torch.cuda.device_count()
 	os.environ['MASTER_ADDR'] = 'localhost'
-	os.environ['MASTER_PORT'] = '80000'
+	os.environ['MASTER_PORT'] = '65535'
 	
 	hps = utils.get_hparams()
-	mp.spawn(run, nprocs=n_gpus, args=(n_gpus, hps,))
+	run(hps)
 
-
-def run(rank, n_gpus, hps):
+def run(hps):
 	global global_step
-	if rank == 0:
-		logger = utils.get_logger(hps.model_dir)
-		logger.info(hps)
-		utils.check_git_hash(hps.model_dir)
-		writer = SummaryWriter(log_dir=hps.model_dir)
-		writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
+
+	logger = utils.get_logger(hps.model_dir)
+	logger.info(hps)
+	utils.check_git_hash(hps.model_dir)
+	writer = SummaryWriter(log_dir=hps.model_dir)
+	writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 	
-	dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
+	dist.init_process_group(backend='nccl', init_method='env://', world_size=1, rank=0)
 	torch.manual_seed(hps.train.seed)
-	torch.cuda.set_device(rank)
+
 	
 	train_dataset = TextAudioLoader(hps.data.training_files, hps.data)
 	train_sampler = DistributedBucketSampler(
 		train_dataset,
 		hps.train.batch_size,
 		[32, 300, 400, 500, 600, 700, 800, 900, 1000],
-		num_replicas=n_gpus,
-		rank=rank,
+		num_replicas=1,
+		rank=0,
 		shuffle=True)
 	collate_fn = TextAudioCollate()
 	train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
 	                          collate_fn=collate_fn, batch_sampler=train_sampler)
-	if rank == 0:
-		eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-		eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
+	
+	eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
+	eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
 		                         batch_size=hps.train.batch_size, pin_memory=True,
 		                         drop_last=False, collate_fn=collate_fn)
 	
@@ -83,8 +78,8 @@ def run(rank, n_gpus, hps):
 		len(symbols),
 		hps.data.filter_length // 2 + 1,
 		hps.train.segment_size // hps.data.hop_length,
-		**hps.model).cuda(rank)
-	net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm).cuda(rank)
+		**hps.model).cuda(0)
+	net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm).cuda(0)
 	optim_g = torch.optim.AdamW(
 		net_g.parameters(),
 		hps.train.learning_rate,
@@ -95,8 +90,8 @@ def run(rank, n_gpus, hps):
 		hps.train.learning_rate,
 		betas=hps.train.betas,
 		eps=hps.train.eps)
-	net_g = DDP(net_g, device_ids=[rank])
-	net_d = DDP(net_d, device_ids=[rank])
+	net_g = DDP(net_g, device_ids=[0])
+	net_d = DDP(net_d, device_ids=[0])
 	
 	try:
 		_, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g,
@@ -114,12 +109,9 @@ def run(rank, n_gpus, hps):
 	scaler = GradScaler(enabled=hps.train.fp16_run)
 	
 	for epoch in range(epoch_str, hps.train.epochs + 1):
-		if rank == 0:
-			train_and_evaluate(rank, epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler,
+		
+		train_and_evaluate(0, epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler,
 			                   [train_loader, eval_loader], logger, [writer, writer_eval])
-		else:
-			train_and_evaluate(rank, epoch, hps, [net_g, net_d], [optim_g, optim_d], [scheduler_g, scheduler_d], scaler,
-			                   [train_loader, None], None, None)
 		scheduler_g.step()
 		scheduler_d.step()
 
