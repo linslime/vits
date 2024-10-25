@@ -129,7 +129,6 @@ pyzmq==25.1.2
 qtconsole==5.5.1
 QtPy==2.4.1
 rdflib==7.0.0
-referencing==0.30.2
 regex==2024.5.15
 requests==2.32.3
 requests-oauthlib==2.0.0
